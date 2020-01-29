@@ -48,14 +48,15 @@
   - *RL Exercise 4 - Online learning with Deep Q Networks*
   - <https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_exercise04_serving.ipynb>
 
+[OpenAI Gym](https://gym.openai.com/)
+
+
 
 ### books, videos, etc.
 
 [RISE Lab YouTube channel](https://www.youtube.com/channel/UCP2-wiA964pif0secCpPbfw/videos)
 
-[*RISE Camp 2019)(https://risecamp.berkeley.edu/)
-
-[OpenAI Gym](https://gym.openai.com/)
+[*RISE Camp 2019*](https://risecamp.berkeley.edu/)
 
 [*Practical Reinforcement Learning*](https://www.endtoend.ai/practical-rl/)  
 **Seungjae Ryan Lee**
