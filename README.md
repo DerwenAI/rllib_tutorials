@@ -5,8 +5,33 @@
 `rllib_colab.ipynb`
 
   - *RL Exercise 1 - Markov Decision Processes*
+  - be careful about the `pyarrow` install/uninstall issue
   - <https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_colab.ipynb>
   - <https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_exercise01_mdp.ipynb>
+
+`gym_taxi2.ipynb`
+
+  - *OpenAI Gym Taxi problem*
+  - use `Taxi-v3` instead
+  - <https://gym.openai.com/docs/>
+
+`rnd_ppo.ipynb`
+
+  - *mountain car continuous problem*
+  - <https://chuacheowhuan.github.io/RND/>
+  - <https://github.com/ChuaCheowHuan/reinforcement_learning/>
+
+`devfestahm_rl.ipynb`
+
+  - *Code-lab on Reinforcement Learning*, Krupa Galiya (@Krupagaliya) at #DevFestAhm18
+  - great general background
+  - <https://colab.research.google.com/drive/15D8NqiBJo42E9omYt6Uts3YbXPQbMgRc>
+
+`DQN Cartpole`
+
+  - hyperparameter tuning job based on Ray Tune
+  - <https://winderresearch.com/a-comparison-of-reinforcement-learning-frameworks-dopamine-rllib-keras-rl-coach-trfl-tensorforce-coach-and-more/#getting-started-2>
+
 
 `rllib_exercise02_ppo.ipynb`
 
@@ -22,26 +47,6 @@
 
   - *RL Exercise 4 - Online learning with Deep Q Networks*
   - <https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_exercise04_serving.ipynb>
-
-
-`DQN Cartpole`
-
-  - <https://winderresearch.com/a-comparison-of-reinforcement-learning-frameworks-dopamine-rllib-keras-rl-coach-trfl-tensorforce-coach-and-more/#getting-started-2>
-
-`gym_taxi2.ipynb`
-
-  - <https://gym.openai.com/docs/>
-
-`rnd_ppo.ipynb`
-
-  - "mountain car continuous problem"
-  - <https://chuacheowhuan.github.io/RND/>
-  - <https://github.com/ChuaCheowHuan/reinforcement_learning/>
-
-`devfestahm_rl.ipynb`
-
-  - *Code-lab on Reinforcement Learning*, Krupa Galiya (@Krupagaliya) at #DevFestAhm18
-  - <https://colab.research.google.com/drive/15D8NqiBJo42E9omYt6Uts3YbXPQbMgRc>
 
 
 ### books, videos, etc.
