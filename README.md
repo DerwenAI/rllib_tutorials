@@ -1,58 +1,18 @@
-# A curated list of RLLib Tutorials
+# RLlib Tutorials
 
-### interactive tutorials
+## Tutorial Notebooks
 
-`rllib_colab.ipynb`
-
-  - *RL Exercise 1 - Markov Decision Processes*
-  - be careful about the `pyarrow` install/uninstall issue
-  - <https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_colab.ipynb>
-  - <https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_exercise01_mdp.ipynb>
-
-`gym_taxi2.ipynb`
-
-  - *OpenAI Gym Taxi problem*
-  - use `Taxi-v3` instead
-  - <https://gym.openai.com/docs/>
-
-`rnd_ppo.ipynb`
-
-  - *mountain car continuous problem*
-  - <https://chuacheowhuan.github.io/RND/>
-  - <https://github.com/ChuaCheowHuan/reinforcement_learning/>
-
-`devfestahm_rl.ipynb`
-
-  - *Code-lab on Reinforcement Learning*, Krupa Galiya (@Krupagaliya) at #DevFestAhm18
-  - great general background
-  - <https://colab.research.google.com/drive/15D8NqiBJo42E9omYt6Uts3YbXPQbMgRc>
-
-`DQN Cartpole`
-
-  - hyperparameter tuning job based on Ray Tune
-  - <https://winderresearch.com/a-comparison-of-reinforcement-learning-frameworks-dopamine-rllib-keras-rl-coach-trfl-tensorforce-coach-and-more/#getting-started-2>
+  * `intro.ipynb` -- Introduction to RLlib
+  * `sample_app.ipynb` -- sample app based on the `CartPole-v0` environment from Gym
 
 
-`rllib_exercise02_ppo.ipynb`
+## Misc.
 
-  - *RL Exercise 2 - Proximal Policy Optimization*
-  - <https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_exercise02_ppo.ipynb>
-
-`rllib_exercise03_custom_env.ipynb`
-
-  - *RL Exercise 3 - Custom Environments and Reward Shaping*
-  - <https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_exercise03_custom_env.ipynb>
-
-`rllib_exercise04_serving.ipynb`
-
-  - *RL Exercise 4 - Online learning with Deep Q Networks*
-  - <https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_exercise04_serving.ipynb>
-
-[OpenAI Gym](https://gym.openai.com/)
+  * `tensorboard_example.ipynb` -- example of how to run TensorBoard with RLlib
+  * `questions.ipynb` -- working code to explore GitHub issues, potential bugs, etc.
 
 
-
-### books, videos, etc.
+### Recommended: books, videos, etc.
 
 [RISE Lab YouTube channel](https://www.youtube.com/channel/UCP2-wiA964pif0secCpPbfw/videos)
 
