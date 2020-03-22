@@ -12,7 +12,7 @@
   * `questions.ipynb` -- working code to explore GitHub issues, potential bugs, etc.
 
 
-### Recommended: books, videos, etc.
+## Recommended: books, videos, etc.
 
 [RISE Lab YouTube channel](https://www.youtube.com/channel/UCP2-wiA964pif0secCpPbfw/videos)
 
