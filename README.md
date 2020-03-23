@@ -3,7 +3,8 @@
 ## Tutorial Notebooks
 
   * `intro.ipynb` -- Introduction to RLlib
-  * `sample_app.ipynb` -- sample app based on the `CartPole-v0` environment from Gym
+  * `app_cartpole.ipynb` -- sample app based on the `CartPole-v0` environment from Gym
+  * `app_taxi.ipynb` -- sample app based on the `Taxi-v3` environment from Gym
 
 
 ## Misc.
