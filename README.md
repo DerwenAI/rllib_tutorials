@@ -5,6 +5,7 @@
   * `intro.ipynb` -- Introduction to RLlib (from [`rllib_exercises`](https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_colab.ipynb) by @edoakes)
   * `app_cartpole.ipynb` -- sample app based on the `CartPole-v0` environment from Gym
   * `app_taxi.ipynb` -- sample app based on the `Taxi-v3` environment from Gym
+  * `app_frozen.ipynb` -- sample app based on the `FrozenLake-v0` environment from Gym
 
 
 ## Misc.
