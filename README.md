@@ -6,7 +6,7 @@
   * `app_cartpole.ipynb` -- sample app based on the `CartPole-v0` environment from Gym
   * `app_taxi.ipynb` -- sample app based on the `Taxi-v3` environment from Gym
   * `app_frozen.ipynb` -- sample app based on the `FrozenLake-v0` environment from Gym
-
+  * `app_mount.ipynb` -- sample app based on the `MountainCar-v0` environment from Gym
 
 ## Misc.
 
