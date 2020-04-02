@@ -1,12 +1,25 @@
 # RLlib Tutorials
 
+These _reinforcement learning_ tutorials use different environments from 
+[OpenAI Gym](https://gym.openai.com/) to illustrate how to train policies 
+in [RLlib](https://ray.readthedocs.io/en/latest/rllib.html).
+
+Use [JupyterLab](https://jupyterlab.readthedocs.io/en/stable/) to run the
+notebooks.
+Connect into the directory for this repo, then launch JupyterLab with the
+command line:
+
+```
+jupyter lab
+```
+
 ## Tutorial Notebooks
 
   * `intro.ipynb` -- Introduction to RLlib (from [`rllib_exercises`](https://github.com/ray-project/tutorial/blob/master/rllib_exercises/rllib_colab.ipynb) by @edoakes)
   * `app_cartpole.ipynb` -- sample app based on the `CartPole-v0` environment from Gym
+  * `app_mount.ipynb` -- sample app based on the `MountainCar-v0` environment from Gym
   * `app_taxi.ipynb` -- sample app based on the `Taxi-v3` environment from Gym
   * `app_frozen.ipynb` -- sample app based on the `FrozenLake-v0` environment from Gym
-  * `app_mount.ipynb` -- sample app based on the `MountainCar-v0` environment from Gym
 
 ## Misc.
 
