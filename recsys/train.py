@@ -22,103 +22,56 @@ import ray
 
 
 ######################################################################
-## scikit-learn clustering
-
-def load_df (data_path):
-    rows = []
-
-    with open(data_path, newline="") as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=",")
-
-        for row in csvreader:
-            conv = [None] * (len(row) - 1)
-
-            for i in range(1, len(row)):
-                if row[i] != "99":
-                    conv[i - 1] = float(row[i]) / 10.0
-
-            rows.append(conv)
-
-    return pd.DataFrame(rows)
-
-
-######################################################################
 ## Gym environment
 
-def load_data (data_path):
-    """load the training data
-
-    Jester collaborative filtering dataset (online joke recommender)
-    https://goldberg.berkeley.edu/jester-data/
-
-    This data file contains anonymous ratings from 24,983 users who 
-    have rated 36 or more jokes.
-
-    This is organized as a matrix with dimensions 24983 X 101
-
-      * one row per user
-      * first column gives the number of jokes rated by that user
-      * the next 100 columns give the ratings for jokes 01 - 100
-      * ratings are real values ranging from -10.00 to +10.00
-      * the value "99" corresponds to "null" = "not rated"
-
-    A dense sub-matrix, in which almost all users have rated the 
-    jokes, includes these columns:
-
-        {5, 7, 8, 13, 15, 16, 17, 18, 19, 20}
-
-    See the discussion of "universal queries" in:
-
-        Eigentaste: A Constant Time Collaborative Filtering Algorithm
-        Ken Goldberg, Theresa Roeder, Dhruv Gupta, Chris Perkins
-        Information Retrieval, 4(2), 133-151 (July 2001)
-        https://goldberg.berkeley.edu/pubs/eigentaste.pdf
-    """
-    rows = []
-
-    with open(data_path, newline="") as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=",")
-
-        for row in csvreader:
-            conv = [None] * len(row)
-            conv[0] = int(row[0])
-
-            for i in range(1, len(row)):
-                if row[i] != "99":
-                    conv[i] = float(row[i]) / 10.0
-
-            rows.append(conv)
-
-    return rows
-
-
 class JokeRec (gym.Env):
-    MAX_STEPS = 10
+    DENSE_SUBMATRIX = [ 5, 7, 8, 13, 15, 16, 17, 18, 19, 20 ]
+    ROW_LENGTH = 100
+    MAX_STEPS = ROW_LENGTH - len(DENSE_SUBMATRIX)
 
-    REWARD_UNRATED = -1.0	# unknown
-    REWARD_DEPLETED = -2.0	# items depleted
+    NO_RATING = "99"
+    MAX_RATING = 10.0
+    MAX_OBS = np.sqrt(MAX_STEPS)
+
+    REWARD_UNRATED = -0.1	# unknown
+    REWARD_DEPLETED = -0.05	# items depleted
 
 
     def __init__ (self, config):
+        # only passing strings in config; RLlib use of JSON
+        # parser was throwing exceptions due to config values
+        self.dense = eval(config["dense"])
         self.centers = eval(config["centers"])
         self.clusters = eval(config["clusters"])
         self.k_clusters = len(self.clusters)
 
-        lo = np.array(np.float64(-1.0) * self.k_clusters)
-        hi = np.array(np.float64(1.0) * self.k_clusters)
+        lo = np.array([np.float64(-self.MAX_OBS)] * self.k_clusters)
+        hi = np.array([np.float64(self.MAX_OBS)] * self.k_clusters)
 
-        self.observation_space = spaces.Box(lo, hi, dtype=np.float64)
+        self.observation_space = spaces.Box(lo, hi, shape=(self.k_clusters,), dtype=np.float64)
         self.action_space = spaces.Discrete(self.k_clusters)
 
         # select a random user to simulate
-        self.dataset = load_data(config["dataset"])
-        episode_row = random.sample(self.dataset, 1)[0]
-        self.data_row = episode_row[1:]
+        self.dataset = self.load_data(config["dataset"])
+        self.data_row = random.choice(self.dataset)
+
+
+    def _warm_start (self):
+        """
+        attempt a warm start for the rec sys, by sampling
+        half of the dense submatrix of most-rated items
+        """
+        sample_size = round(len(self.dense) / 2)
+
+        for action, items in self.clusters.items():
+            for item in random.sample(self.dense, sample_size):
+                if item in items:
+                    state, reward, done, info = self.step(action)
 
 
     def _get_state (self):
         state = np.sqrt(self.history)
-        #assert state in self.observation_space, state
+        assert state in self.observation_space, state
         return state
 
 
@@ -126,7 +79,10 @@ class JokeRec (gym.Env):
         self.count = 0
         self.used = []
         self.depleted = 0
-        self.history = [ np.float64(0.0) for i in range(self.k_clusters) ]
+        self.history = [np.float64(0.0)] * self.k_clusters
+
+        # attempt a warm start
+        self._warm_start()
 
         return self._get_state()
 
@@ -163,34 +119,106 @@ class JokeRec (gym.Env):
                     scaled_diff = abs(c[item] - rating) / 2.0
                     assert scaled_diff <= 1.0, status_str.format(c[item], rating, scaled_diff)
                     self.history[i] += scaled_diff ** 2.0
+                    assert np.sqrt(self.history[i]) < self.MAX_OBS, (np.sqrt(self.history[i]), scaled_diff ** 2.0)
 
         self.count += 1
         done = self.count >= self.MAX_STEPS
-        info = { "item": item, "count": self.count }
+        info = { "item": item, "count": self.count, "depleted": self.depleted }
 
         return self._get_state(), reward, done, info
 
 
     def render (self, mode="human"):
         #print(">> ", self.data_row)
-        print(">> ", self.depleted)
+        #print(">> ", self.depleted)
         print(">> ", self.used)
         print(">> ", self.history)
 
 
-def run_one_episode (config, verbose=False):
+    @classmethod
+    def load_data (cls, data_path):
+        """load the training data
+
+        Jester collaborative filtering dataset (online joke recommender)
+        https://goldberg.berkeley.edu/jester-data/
+
+        This data file contains anonymous ratings from 24,983 users who 
+        have rated 36 or more jokes.
+
+        This is organized as a matrix with dimensions 24983 X 101
+
+          * one row per user
+          * first column gives the number of jokes rated by that user
+          * the next 100 columns give the ratings for jokes 01 - 100
+          * ratings are real values ranging from -10.00 to +10.00
+          * the value "99" corresponds to "null" = "not rated"
+
+        A dense sub-matrix, in which almost all users have rated the 
+        jokes, includes these columns:
+
+            {5, 7, 8, 13, 15, 16, 17, 18, 19, 20}
+
+        See the discussion of "universal queries" in:
+
+            Eigentaste: A Constant Time Collaborative Filtering Algorithm
+            Ken Goldberg, Theresa Roeder, Dhruv Gupta, Chris Perkins
+            Information Retrieval, 4(2), 133-151 (July 2001)
+            https://goldberg.berkeley.edu/pubs/eigentaste.pdf
+        """
+        rows = []
+        status_str = "input data: i {} row {} rating {}"
+
+        with open(data_path, newline="") as csvfile:
+            csvreader = csv.reader(csvfile, delimiter=",")
+
+            for row in csvreader:
+                conv = [None] * (len(row) - 1)
+
+                for i in range(1, len(row)):
+                    if row[i] != cls.NO_RATING:
+                        rating = float(row[i]) / cls.MAX_RATING
+                        assert rating >= -1.0 and rating <= 1.0, status_str.format(i, row, rating)
+                        conv[i - 1] = rating
+
+                rows.append(conv)
+
+        return rows
+
+
+def run_one_episode (config, naive=False, verbose=False):
     env = JokeRec(config)
     env.reset()
     sum_reward = 0
 
+    action = None
+    avoid_actions = set([])
+    depleted = 0
+
     for i in range(env.MAX_STEPS):
-        action = env.action_space.sample()
+        if not naive or not action:
+            action = env.action_space.sample()
+
         state, reward, done, info = env.step(action)
 
         if verbose:
             print("action:", action)
-            print("obs:", i, state, reward, done)
-            env.render()
+            print("obs:", i, state, reward, done, info)
+            #env.render()
+
+        if naive:
+            if info["depleted"] > depleted:
+                depleted = info["depleted"]
+                avoid_actions.add(action)
+
+            # optimize for the nearest non-depleted cluster
+            obs = []
+
+            for a in range(len(state)):
+                if a not in avoid_actions:
+                    dist = round(state[a], 2)
+                    obs.append([dist, a])
+
+            action = min(obs)[1]
 
         sum_reward += reward
 
@@ -201,7 +229,7 @@ def run_one_episode (config, verbose=False):
             break
 
     if verbose:
-        print("CUMULATIVE REWARD", sum_reward)
+        print("CUMULATIVE REWARD", round(sum_reward, 3))
 
     return sum_reward
 
@@ -211,7 +239,7 @@ def run_one_episode (config, verbose=False):
 
 if __name__ == "__main__":
     dataset_path = Path.cwd() / Path("jester-data-1.csv")
-    df = load_df(dataset_path)
+    df = pd.DataFrame(JokeRec.load_data(dataset_path))
 
     # impute missing values with column mean (avg rating per joke)
     # https://scikit-learn.org/stable/modules/impute.html
@@ -240,8 +268,10 @@ if __name__ == "__main__":
     # prepare the configuration for the custom environment
     config = {
         "env": JokeRec,
+        "num_workers": 3, # set to 0 for debug
         "env_config": {
             "dataset": dataset_path,
+            "dense": str(JokeRec.DENSE_SUBMATRIX),
             "clusters": repr(dict(CLUSTERS)),
             "centers": repr(CENTERS.tolist())
             }
@@ -250,12 +280,13 @@ if __name__ == "__main__":
     # measure the performance of a random-action baseline
     history = []
 
-    for _ in range(1):
-        sum_reward = run_one_episode(config["env_config"], verbose=False)
+    for _ in range(10):
+        sum_reward = run_one_episode(config["env_config"], naive=True, verbose=False)
         history.append(sum_reward)
 
     avg_sum_reward = sum(history) / len(history)
-    print("\nBASELINE CUMULATIVE REWARD: {:6.2}".format(avg_sum_reward))
+    print("\nBASELINE CUMULATIVE REWARD", round(avg_sum_reward, 3))
+    #sys.exit(0)
 
     # train with Ray/RLlib
     stop = {
@@ -269,7 +300,7 @@ if __name__ == "__main__":
 
     try:
         results = tune.run("PPO", config=config, stop=stop)
-        check_learning_achieved(results, 0.0) #stop["episode_reward_mean"]
+        check_learning_achieved(results, 3.0) #stop["episode_reward_mean"]
     except Exception:
         traceback.print_exc()
 
