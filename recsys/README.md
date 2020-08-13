@@ -1,6 +1,6 @@
 example code is in `train.py`
 
-exception trace from the Ray worker is in `error.txt`
+exception trace from the Ray worker (if any) is in `error.txt`
 
 
 ### library versions

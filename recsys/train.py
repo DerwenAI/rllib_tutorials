@@ -8,17 +8,18 @@ import traceback
 from collections import defaultdict
 from gym import spaces
 from pathlib import Path
-from ray import tune
-from ray.rllib.utils.test_utils import check_learning_achieved
-from ray.tune import grid_search
+from ray.tune.registry import register_env
 from sklearn.cluster import KMeans
 from sklearn.impute import SimpleImputer
 import csv
 import gym
 import numpy as np
+import os
 import pandas as pd
 import random
 import ray
+import ray.rllib.agents.ppo as ppo
+import shutil
 
 
 ######################################################################
@@ -33,8 +34,8 @@ class JokeRec (gym.Env):
     MAX_RATING = 10.0
     MAX_OBS = np.sqrt(MAX_STEPS)
 
-    REWARD_UNRATED = -0.1	# unknown
-    REWARD_DEPLETED = -0.05	# items depleted
+    REWARD_UNRATED = -0.05	# item was not rated
+    REWARD_DEPLETED = -0.1	# items depleted
 
 
     def __init__ (self, config):
@@ -51,9 +52,8 @@ class JokeRec (gym.Env):
         self.observation_space = spaces.Box(lo, hi, shape=(self.k_clusters,), dtype=np.float64)
         self.action_space = spaces.Discrete(self.k_clusters)
 
-        # select a random user to simulate
+        # load the dataset
         self.dataset = self.load_data(config["dataset"])
-        self.data_row = random.choice(self.dataset)
 
 
     def _warm_start (self):
@@ -61,7 +61,7 @@ class JokeRec (gym.Env):
         attempt a warm start for the rec sys, by sampling
         half of the dense submatrix of most-rated items
         """
-        sample_size = round(len(self.dense) / 2)
+        sample_size = round(len(self.dense) / 2.0)
 
         for action, items in self.clusters.items():
             for item in random.sample(self.dense, sample_size):
@@ -80,6 +80,9 @@ class JokeRec (gym.Env):
         self.used = []
         self.depleted = 0
         self.history = [np.float64(0.0)] * self.k_clusters
+
+        # select a random user to simulate
+        self.data_row = random.choice(self.dataset)
 
         # attempt a warm start
         self._warm_start()
@@ -130,9 +133,13 @@ class JokeRec (gym.Env):
 
     def render (self, mode="human"):
         #print(">> ", self.data_row)
-        #print(">> ", self.depleted)
-        print(">> ", self.used)
-        print(">> ", self.history)
+        print(">> depl:", self.depleted)
+
+        last_used = self.used[-10:]
+        last_used.reverse()
+            
+        print(">> used:", last_used)
+        print(">> dist:", [round(np.sqrt(x), 2) for x in self.history])
 
 
     @classmethod
@@ -265,6 +272,7 @@ if __name__ == "__main__":
     for i in range(len(labels)):
         CLUSTERS[labels[i]].add(i)
 
+
     # prepare the configuration for the custom environment
     config = {
         "env": JokeRec,
@@ -278,30 +286,93 @@ if __name__ == "__main__":
         }
 
     # measure the performance of a random-action baseline
+    #pdb.set_trace()
     history = []
 
     for _ in range(10):
         sum_reward = run_one_episode(config["env_config"], naive=True, verbose=False)
         history.append(sum_reward)
 
-    avg_sum_reward = sum(history) / len(history)
-    print("\nBASELINE CUMULATIVE REWARD", round(avg_sum_reward, 3))
+    baseline = sum(history) / len(history)
+    print("\nBASELINE CUMULATIVE REWARD", round(baseline, 3))
     #sys.exit(0)
 
-    # train with Ray/RLlib
-    stop = {
-        "training_iteration": 1,
-        "timesteps_total": 1000,
-        "episode_reward_mean": 10.0
-    }
 
+    # init directory in which to save checkpoints
+    chkpt_root = "tmp/rec"
+    shutil.rmtree(chkpt_root, ignore_errors=True, onerror=None)
+
+    # init directory in which to log results
+    ray_results = "{}/ray_results/".format(os.getenv("HOME"))
+    shutil.rmtree(ray_results, ignore_errors=True, onerror=None)
+
+    # start Ray
     ray.init(ignore_reinit_error=True)
-    #pdb.set_trace()
 
-    try:
-        results = tune.run("PPO", config=config, stop=stop)
-        check_learning_achieved(results, 3.0) #stop["episode_reward_mean"]
-    except Exception:
-        traceback.print_exc()
+    # register the custom environment
+    select_env = "JokeRec-v0"
+    register_env(select_env, lambda config: JokeRec(config))
+
+
+    # configure the environment and create agent
+    config = ppo.DEFAULT_CONFIG.copy()
+    config["log_level"] = "WARN"
+    config["num_workers"] = 3	# set to 0 for debug
+    config["env_config"] = {
+        "dataset": dataset_path,
+        "dense": str(JokeRec.DENSE_SUBMATRIX),
+        "clusters": repr(dict(CLUSTERS)),
+        "centers": repr(CENTERS.tolist())
+        }
+
+    agent = ppo.PPOTrainer(config, env=select_env)
+
+    # train a policy with RLlib using PPO
+    status = "{:2d}  reward {:6.2f}/{:6.2f}/{:6.2f}  len {:4.2f}  saved {}"
+    n_iter = 50
+
+    for n in range(n_iter):
+        result = agent.train()
+        chkpt_file = agent.save(chkpt_root)
+
+        print(status.format(
+                n + 1,
+                result["episode_reward_min"],
+                result["episode_reward_mean"],
+                result["episode_reward_max"],
+                result["episode_len_mean"],
+                chkpt_file
+                ))
+
+
+    # examine the trained policy
+    policy = agent.get_policy()
+    model = policy.model
+    print("\n", model.base_model.summary())
+
+
+    # apply the trained policy in a rollout
+    agent.restore(chkpt_file)
+    env = JokeRec(config["env_config"])
+
+    state = env.reset()
+    sum_reward = 0
+
+    for step in range(JokeRec.MAX_STEPS * 5):
+        try:
+            action = agent.compute_action(state)
+            state, reward, done, info = env.step(action)
+            sum_reward += reward
+
+            print("reward", round(reward, 3), round(sum_reward, 3))
+            env.render()
+        except Exception:
+            traceback.print_exc()
+
+        if done:
+            # report at the end of each episode
+            print("CUMULATIVE REWARD", round(sum_reward, 3), "\n")
+            state = env.reset()
+            sum_reward = 0
 
     ray.shutdown()
