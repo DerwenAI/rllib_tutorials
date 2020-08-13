@@ -4,10 +4,12 @@
 from argparse import ArgumentParser
 from collections import defaultdict
 from gym import spaces
+from gym.utils import seeding
 from pathlib import Path
 from ray.tune.registry import register_env
 from sklearn.cluster import KMeans
 from sklearn.impute import SimpleImputer
+from tqdm import tqdm
 import csv
 import gym
 import numpy as np
@@ -26,6 +28,10 @@ import traceback
 ## Gym environment
 
 class JokeRec (gym.Env):
+    metadata = {
+        "render.modes": ["human"]
+        }
+
     DENSE_SUBMATRIX = [ 5, 7, 8, 13, 15, 16, 17, 18, 19, 20 ]
     ROW_LENGTH = 100
     MAX_STEPS = ROW_LENGTH - len(DENSE_SUBMATRIX)
@@ -39,7 +45,7 @@ class JokeRec (gym.Env):
 
 
     def __init__ (self, config):
-        # only passing strings in config; RLlib use of JSON
+        # NB: here we're passing strings via config; RLlib use of JSON
         # parser was throwing exceptions due to config values
         self.dense = eval(config["dense"])
         self.centers = eval(config["centers"])
@@ -70,12 +76,29 @@ class JokeRec (gym.Env):
 
 
     def _get_state (self):
-        state = np.sqrt(self.coords)
-        assert state in self.observation_space, state
+        """
+        calculate root-mean-square (i.e., normalized vector distance)
+        for the agent's current "distance" measure from each cluster
+        center as the observation
+        """
+        n = float(len(self.used))
+
+        if n > 0.0:
+            state = [ np.sqrt(x / n) for x in self.coords ]
+        else:
+            state = self.coords
+
+        assert state in self.observation_space, (n, self.coords, state)
         return state
 
 
     def reset (self):
+        """
+        reset the item recommendation history, select a new user to
+        simulate from among the dataset rows, then run through an
+        initial 'warm-start' sequence of steps before handing step
+        control back to the agent
+        """
         self.count = 0
         self.used = []
         self.depleted = 0
@@ -91,6 +114,10 @@ class JokeRec (gym.Env):
 
 
     def step (self, action):
+        """
+        attempt to recommend one item; may result in a no-op --
+        in other words, in production skip any repeated items
+        """
         assert action in self.action_space, action
         assert_info = "c[item] {}, rating {}, scaled_diff {}"
 
@@ -129,7 +156,7 @@ class JokeRec (gym.Env):
                     scaled_diff = abs(c[item] - rating) / 2.0
                     assert scaled_diff <= 1.0, assert_info.format(c[item], rating, scaled_diff)
                     self.coords[i] += scaled_diff ** 2.0
-                    assert np.sqrt(self.coords[i]) < self.MAX_OBS, (np.sqrt(self.coords[i]), scaled_diff ** 2.0)
+                    assert self.coords[i] < len(self.used), (self.coords[i], scaled_diff ** 2.0)
 
         self.count += 1
         done = self.count >= self.MAX_STEPS
@@ -143,14 +170,46 @@ class JokeRec (gym.Env):
         last_used.reverse()
             
         print(">> used:", last_used)
-        print(">> dist:", [round(np.sqrt(x), 2) for x in self.coords])
+        print(">> dist:", [round(x, 2) for x in self._get_state()])
+
         print(">> depl:", self.depleted)
         #print(">> data:", self.data_row)
 
 
+    def seed (self, seed=None):
+        """Sets the seed for this env's random number generator(s).
+
+        Note:
+            Some environments use multiple pseudorandom number generators.
+            We want to capture all such seeds used in order to ensure that
+            there aren't accidental correlations between multiple generators.
+
+        Returns:
+            list<bigint>: Returns the list of seeds used in this env's random
+              number generators. The first value in the list should be the
+              "main" seed, or the value which a reproducer should pass to
+              'seed'. Often, the main seed equals the provided 'seed', but
+              this won't be true if seed=None, for example.
+        """
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
+
+    def close (self):
+        """Override close in your subclass to perform any necessary cleanup.
+        Environments will automatically close() themselves when
+        garbage collected or when the program exits.
+        """
+        pass
+
+
+    ######################################################################
+    ## load the dataset
+
     @classmethod
     def load_data (cls, data_path):
-        """load the training data
+        """
+        load the training data
 
         Jester collaborative filtering dataset (online joke recommender)
         https://goldberg.berkeley.edu/jester-data/
@@ -198,31 +257,74 @@ class JokeRec (gym.Env):
         return rows
 
 
+    ######################################################################
+    ## K-means clustering using scikit-learn
+
     @classmethod
-    def run_rollout (cls, agent, env, n_iter):
-        for episode in range(n_iter):
-            state = env.reset()
-            sum_reward = 0
+    def cluster_sample (cls, k, sample):
+        df = pd.DataFrame(sample)
 
-            for step in range(cls.MAX_STEPS):
-                try:
-                    action = agent.compute_action(state)
-                    state, reward, done, info = env.step(action)
-                    sum_reward += reward
+        # impute missing values using the column means (i.e., the avg
+        # rating per item)
+        # https://scikit-learn.org/stable/modules/impute.html
+        imp = SimpleImputer(missing_values=np.nan, strategy="mean")
+        imp.fit(df.values)
+        X = imp.transform(df.values).T
 
-                    print("reward", round(reward, 3), round(sum_reward, 3))
-                    env.render()
-                except Exception:
-                    traceback.print_exc()
+        # perform K-means clustering
+        # https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
+        km = KMeans(n_clusters=k)
+        km.fit(X)
+        centers = km.cluster_centers_
 
-                if done:
-                    # report at the end of each episode
-                    print("CUMULATIVE REWARD", round(sum_reward, 3), "\n")
-                    break
+        # segment the items by their respective cluster labels
+        clusters = defaultdict(set)
+        labels = km.labels_
 
+        for i in range(len(labels)):
+            clusters[labels[i]].add(i)
+
+        return centers.tolist(), dict(clusters)
+
+
+    @classmethod
+    def prep_config (cls, dataset_path, k_clusters=3, debug=False, verbose=False):
+        """we've previously used inertia to estimate the `k`
+        hyperparameter to tune for the number of clusters (i.e.,
+        user segmentation)
+
+        https://scikit-learn.org/stable/auto_examples/cluster/plot_kmeans_stability_low_dim_dense.html
+        https://towardsdatascience.com/k-means-clustering-with-scikit-learn-6b47a369a83c
+        """
+        sample = cls.load_data(dataset_path)
+        centers, clusters = cls.cluster_sample(k_clusters, sample)
+
+        # use the results of the sample clustering to prepare a
+        # configuration for our custom environment
+        config = ppo.DEFAULT_CONFIG.copy()
+
+        config["log_level"] = ("DEBUG" if verbose else "WARN")
+        config["num_workers"] = (0 if debug else 3)
+
+        config["env_config"] = {
+            "dataset": dataset_path,
+            "dense": str(cls.DENSE_SUBMATRIX),
+            "clusters": repr(clusters),
+            "centers": repr(centers),
+            }
+
+        return config
+
+
+    ######################################################################
+    ## managing rollouts
 
     @classmethod
     def run_one_episode (cls, config_env, naive=False, verbose=False):
+        """
+        step through one episode of the agent without learning, using
+        either a naive strategy or random actions
+        """
         env = cls(config_env)
         env.reset()
         sum_reward = 0
@@ -267,16 +369,20 @@ class JokeRec (gym.Env):
                 break
 
         if verbose:
-            print("CUMULATIVE REWARD", round(sum_reward, 3))
+            print("CUMULATIVE REWARD: ", round(sum_reward, 3))
 
         return sum_reward
 
 
     @classmethod
     def measure_baseline (cls, config_env, n_iter=1, naive=False, verbose=False):
+        """
+        measure the baseline performance without learning, using
+        either a naive agent or random actions
+        """
         history = []
 
-        for episode in range(n_iter):
+        for episode in tqdm(range(n_iter), ascii=True, desc="measure baseline"):
             sum_reward = cls.run_one_episode(config_env, naive=naive, verbose=verbose)
             history.append(sum_reward)
 
@@ -284,74 +390,37 @@ class JokeRec (gym.Env):
         return baseline
 
 
-######################################################################
-## K-means clustering using scikit-learn
+    @classmethod
+    def run_rollout (cls, agent, env, n_iter, verbose=False):
+        """
+        iterate through `n_iter` episodes in a rollout to emulate
+        deployment in a production use case
+        """
+        for episode in range(n_iter):
+            state = env.reset()
+            sum_reward = 0
 
-def cluster_sample (k, sample):
-    df = pd.DataFrame(sample)
+            for step in range(cls.MAX_STEPS):
+                try:
+                    action = agent.compute_action(state)
+                    state, reward, done, info = env.step(action)
 
-    # impute missing values using column means (avg rating per item)
-    # https://scikit-learn.org/stable/modules/impute.html
-    imp = SimpleImputer(missing_values=np.nan, strategy="mean")
-    imp.fit(df.values)
-    X = imp.transform(df.values).T
+                    sum_reward += reward
+                    print("reward {:6.3f}  sum {:6.3f}".format(reward, sum_reward))
 
-    # perform K-means clustering
-    # https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
-    km = KMeans(n_clusters=k)
-    km.fit(X)
-    centers = km.cluster_centers_
+                    if verbose:
+                        env.render()
+                except Exception:
+                    traceback.print_exc()
 
-    # segment the items by their respective cluster labels
-    clusters = defaultdict(set)
-    labels = km.labels_
-
-    for i in range(len(labels)):
-        clusters[labels[i]].add(i)
-
-    return centers.tolist(), dict(clusters)
-
-
-def prep_config (dataset_path, debug=False, verbose=False):
-    # we previously used inertia to estimate the `k` hyperparameter
-    # to tune for the number of clusters (i.e., user segmentation)
-    # https://scikit-learn.org/stable/auto_examples/cluster/plot_kmeans_stability_low_dim_dense.html
-    # https://towardsdatascience.com/k-means-clustering-with-scikit-learn-6b47a369a83c
-    k_clusters = 12
-    sample = JokeRec.load_data(dataset_path)
-    centers, clusters = cluster_sample(k_clusters, sample)
-
-    # use the results of the sample clustering to prepare a
-    # configuration for our custom environment
-    config = ppo.DEFAULT_CONFIG.copy()
-    config["log_level"] = ("DEBUG" if verbose else "WARN")
-    config["num_workers"] = (0 if debug else 3)
-
-    config["env_config"] = {
-        "dataset": dataset_path,
-        "dense": str(JokeRec.DENSE_SUBMATRIX),
-        "clusters": repr(clusters),
-        "centers": repr(centers),
-        }
-
-    return config
+                if done:
+                    # report at the end of each episode
+                    print("CUMULATIVE REWARD:", round(sum_reward, 3), "\n")
+                    break
 
 
 ######################################################################
-## local utilities for Ray
-
-def init_ray_files (chkpt_root):
-    # initialize the directory in which to save checkpoints
-    shutil.rmtree(chkpt_root, ignore_errors=True, onerror=None)
-
-    # initialize directory in which to log results
-    ray_results = "{}/ray_results/".format(os.getenv("HOME"))
-    shutil.rmtree(ray_results, ignore_errors=True, onerror=None)
-
-
-
-######################################################################
-## command line interface
+## command line interface and initialization
 
 PARSER = ArgumentParser()
 
@@ -377,13 +446,19 @@ PARSER.add_argument("-v", "--verbose",
                     )
 
 
+def init_dir (chkpt_root):
+    # initialize the directory in which to save checkpoints
+    shutil.rmtree(chkpt_root, ignore_errors=True, onerror=None)
+
+    # initialize directory in which to log results
+    ray_results = "{}/ray_results/".format(os.getenv("HOME"))
+    shutil.rmtree(ray_results, ignore_errors=True, onerror=None)
+
+
 ######################################################################
 ## main entry point
 
-if __name__ == "__main__":
-    args = PARSER.parse_args()
-
-    # switch modes between a minimal run and a longer optimization
+def main (args):
     if args.full_run:
         PARAM = {
             "baseline_iter": 10,
@@ -391,6 +466,7 @@ if __name__ == "__main__":
             "rollout_iter": 5,
             }
     else:
+        print("minimal run, just to exercise the code")
         PARAM = {
             "baseline_iter": 3,
             "train_iter": 4,
@@ -399,13 +475,20 @@ if __name__ == "__main__":
 
     PARAM["debug"] = args.debug
     PARAM["verbose"] = args.verbose
-
+    PARAM["dataset"] = "jester-data-1.csv"
+    PARAM["chkpt_root"] = "tmp/rec"
 
     # sample the dataset, cluster, then prepare a configuration
-    dataset_path = Path.cwd() / Path("jester-data-1.csv")
-    CONFIG = prep_config(dataset_path, debug=PARAM["debug"], verbose=PARAM["verbose"])
+    dataset_path = Path.cwd() / Path(PARAM["dataset"])
 
-    # measure baseline performance of a naive agent strategy
+    CONFIG = JokeRec.prep_config(
+        dataset_path,
+        k_clusters=12,
+        debug=PARAM["debug"],
+        verbose=PARAM["verbose"]
+        )
+
+    # measure the baseline performance of a naive agent
     if PARAM["debug"]:
         pdb.set_trace()
 
@@ -416,14 +499,11 @@ if __name__ == "__main__":
         verbose=PARAM["verbose"],
         )
 
-    print("\n", "BASELINE CUMULATIVE REWARD", round(baseline, 3))
+    print("BASELINE CUMULATIVE REWARD", round(baseline, 3), "\n")
     #sys.exit(0)
 
-
     # clear logs and restart Ray
-    CHKPT_ROOT = "tmp/rec"
-    init_ray_files(CHKPT_ROOT)
-
+    init_dir(PARAM["chkpt_root"])
     ray.init(ignore_reinit_error=True)
 
     # register the custom environment and create an agent
@@ -436,7 +516,7 @@ if __name__ == "__main__":
 
     for n in range(PARAM["train_iter"]):
         result = AGENT.train()
-        chkpt_file = AGENT.save(CHKPT_ROOT)
+        chkpt_file = AGENT.save(PARAM["chkpt_root"])
 
         print(status.format(
                 n + 1,
@@ -454,8 +534,19 @@ if __name__ == "__main__":
 
     # apply the trained policy in a rollout
     AGENT.restore(chkpt_file)
-    env = JokeRec(CONFIG["env_config"])
-    JokeRec.run_rollout(AGENT, env, PARAM["rollout_iter"])
+    print("\n", "BEST CHECKPOINT:", chkpt_file, "\n")
 
-    # shutdown gracefully, bye
+    JokeRec.run_rollout(
+        AGENT,
+        JokeRec(CONFIG["env_config"]),
+        PARAM["rollout_iter"],
+        verbose=PARAM["verbose"]
+        )
+
+    # shutdown gracefully, kthxbai
     ray.shutdown()
+
+
+if __name__ == "__main__":
+    args = PARSER.parse_args()
+    main(args)

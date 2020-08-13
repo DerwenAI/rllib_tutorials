@@ -1,16 +1,18 @@
-example code is in `train.py`
+The example code is in `recsys.py`
 
-exception trace from the Ray worker (if any) is in `error.txt`
+Latest exception trace from the Ray worker (if any) is in `error.txt`
 
 
 ### library versions
 
-using Python 3.7.4
-on macOS 0.13.6 (17G14019)
+Originally developed in `Python 3.7.4` on `macOS 0.13.6 (17G14019)`
+with the following releases of library dependencies related to
+[Ray](https://ray.io/)
 
 ```
 gym==0.17.2
 numpy==1.18.5
+pandas==1.0.5
 ray==0.8.6
 scikit-learn==0.21.3
 tensorboard-plugin-wit==1.7.0
