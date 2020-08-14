@@ -56,9 +56,9 @@ Ken Goldberg, Theresa Roeder, Dhruv Gupta, Chris Perkins.
 
 ### Analysis
 
-There is a Jupyter notebook `cluster.ipynb` which was used to
-determine how to optimize the clustering used by the recommender
-system.
+There is a Jupyter notebook `cluster.ipynb` which helped determine 
+how to optimize the clustering used by this recommender system.
+It could be adapted for other data sources.
 
 ### Dependencies
 
