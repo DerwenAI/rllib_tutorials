@@ -39,7 +39,6 @@ class JokeRec (gym.Env):
 
     NO_RATING = "99"
     MAX_RATING = 10.0
-    MAX_OBS = np.sqrt(MAX_STEPS)
 
     REWARD_UNRATED = -0.05	# item was not rated
     REWARD_DEPLETED = -0.1	# items depleted
@@ -53,8 +52,8 @@ class JokeRec (gym.Env):
         self.clusters = eval(config["clusters"])
         self.k_clusters = len(self.clusters)
 
-        lo = np.array([np.float64(-self.MAX_OBS)] * self.k_clusters)
-        hi = np.array([np.float64(self.MAX_OBS)] * self.k_clusters)
+        lo = np.array([np.float64(-1.0)] * self.k_clusters)
+        hi = np.array([np.float64(1.0)] * self.k_clusters)
 
         self.observation_space = spaces.Box(lo, hi, shape=(self.k_clusters,), dtype=np.float64)
         self.action_space = spaces.Discrete(self.k_clusters)
@@ -421,7 +420,7 @@ class JokeRec (gym.Env):
 
 
 ######################################################################
-## command line interface and initialization
+## command line interface and utilities
 
 PARSER = ArgumentParser()
 
@@ -430,6 +429,16 @@ PARSER.add_argument("--full",
                     dest="full_run",
                     default=False,
                     help="full optimization, not merely a minimal run"
+                    )
+
+PARSER.add_argument("--train",
+                    default=None,
+                    help="specify the number of training iterations"
+                    )
+
+PARSER.add_argument("--data",
+                    default=None,
+                    help="specify a dataset to use for rollouts"
                     )
 
 PARSER.add_argument("-d", "--debug",
@@ -447,19 +456,12 @@ PARSER.add_argument("-v", "--verbose",
                     )
 
 
-def init_dir (checkpoint_root):
-    # initialize the directory in which to save checkpoints
-    shutil.rmtree(checkpoint_root, ignore_errors=True, onerror=None)
+def parse_args ():
+    """
+    parse the CLI arguments to set parameters for running the app
+    """
+    args = PARSER.parse_args()
 
-    # initialize directory in which to log results
-    ray_results = "{}/ray_results/".format(os.getenv("HOME"))
-    shutil.rmtree(ray_results, ignore_errors=True, onerror=None)
-
-
-######################################################################
-## main entry point
-
-def main (args):
     if args.full_run:
         PARAM = {
             "baseline_iter": 10,
@@ -467,24 +469,63 @@ def main (args):
             "rollout_iter": 5,
             }
     else:
-        print("minimal run, just to exercise the code")
+        print("minimal run, to exercise the code")
         PARAM = {
             "baseline_iter": 3,
             "train_iter": 4,
             "rollout_iter": 1,
             }
 
+    if args.train:
+        PARAM["train_iter"] = int(args.train)
+
     PARAM["debug"] = args.debug
     PARAM["verbose"] = args.verbose
+    PARAM["k_clusters"] = 12
     PARAM["dataset"] = "jester-data-1.csv"
     PARAM["checkpoint_root"] = "tmp/rec"
+    PARAM["rollout_dataset"] = args.data
 
-    # sample the dataset, cluster, then prepare a configuration
+    return PARAM
+
+
+def init_dir (checkpoint_root):
+    """
+    initialize the directory in which to save checkpoints, and the
+    directory in which to log results
+    """
+    shutil.rmtree(checkpoint_root, ignore_errors=True, onerror=None)
+
+    ray_results = "{}/ray_results/".format(os.getenv("HOME"))
+    shutil.rmtree(ray_results, ignore_errors=True, onerror=None)
+
+
+def get_best_checkpoint (df):
+    """
+    use a pareto archive to select the best checkpoint
+    """
+    df_front = df.drop(columns=["steps", "checkpoint"])
+    mask = paretoset(df_front, sense=["max", "max", "max"])
+
+    optimal = df_front[mask]
+    max_val = optimal["avg_reward"].max()
+
+    best_checkpoint = df.loc[df["avg_reward"] == max_val, "checkpoint"].values[0]
+    return best_checkpoint
+
+
+######################################################################
+## main entry point
+
+def main ():   
+    # initialize logs, dataset, configuration
+    PARAM = parse_args()
+    init_dir(PARAM["checkpoint_root"])
     dataset_path = Path.cwd() / Path(PARAM["dataset"])
 
     CONFIG = JokeRec.prep_config(
         dataset_path,
-        k_clusters=12,
+        k_clusters=PARAM["k_clusters"],
         debug=PARAM["debug"],
         verbose=PARAM["verbose"]
         )
@@ -501,48 +542,33 @@ def main (args):
         )
 
     print("BASELINE CUMULATIVE REWARD", round(baseline, 3), "\n")
-    #sys.exit(0)
 
-    # clear logs and restart Ray
-    init_dir(PARAM["checkpoint_root"])
+    # restart Ray, register our environment, and create an agent
     ray.init(ignore_reinit_error=True)
 
-    # register the custom environment and create an agent
     env_key = "JokeRec-v0"
     register_env(env_key, lambda config_env: JokeRec(config_env))
     AGENT = ppo.PPOTrainer(CONFIG, env=env_key)
 
     # use RLlib to train a policy using PPO
-    df = pd.DataFrame(columns=[ "min_reward", "avg_reward", "max_reward", "checkpoint"])
-    status = "{:2d}  reward {:6.2f} {:6.2f} {:6.2f}  len {:4.2f}  saved {}"
+    df = pd.DataFrame(columns=[ "min_reward", "avg_reward", "max_reward", "steps", "checkpoint"])
+    status = "reward {:6.2f} {:6.2f} {:6.2f}  len {:4.2f}  saved {}"
 
-    for n in range(PARAM["train_iter"]):
+    for i in range(PARAM["train_iter"]):
         result = AGENT.train()
         checkpoint_file = AGENT.save(PARAM["checkpoint_root"])
-
-        df.loc[len(df)] = [
+        row = [
             result["episode_reward_min"],
             result["episode_reward_mean"],
             result["episode_reward_max"],
+            result["episode_len_mean"],
             checkpoint_file,
             ]
 
-        print(status.format(
-                n + 1,
-                result["episode_reward_min"],
-                result["episode_reward_mean"],
-                result["episode_reward_max"],
-                result["episode_len_mean"],
-                checkpoint_file
-                ))
+        df.loc[len(df)] = row
+        print(status.format(*row))
 
-    # use a pareto archive to select the best checkpoint
-    df_front = df.drop(columns=["checkpoint"])
-    mask = paretoset(df_front, sense=["max", "max", "max"])
-    optimal = df_front[mask]
-    max_val = optimal["avg_reward"].max()
-
-    best_checkpoint = df.loc[df["avg_reward"] == max_val, "checkpoint"].values[0]
+    best_checkpoint = get_best_checkpoint(df)
     print("\n", "BEST CHECKPOINT:", best_checkpoint, "\n")
 
     # examine the trained policy
@@ -552,6 +578,9 @@ def main (args):
 
     # apply the trained policy in a rollout
     AGENT.restore(best_checkpoint)
+
+    if PARAM["rollout_dataset"]:
+        config["env_config"]["dataset"] = Path.cwd() / Path(PARAM["rollout_dataset"])
 
     JokeRec.run_rollout(
         AGENT,
@@ -565,5 +594,4 @@ def main (args):
 
 
 if __name__ == "__main__":
-    args = PARSER.parse_args()
-    main(args)
+    main()
