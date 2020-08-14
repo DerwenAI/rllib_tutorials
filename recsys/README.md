@@ -73,11 +73,7 @@ numpy==1.18.5
 pandas==1.0.5
 ray==0.8.6
 scikit-learn==0.21.3
-tensorboard-plugin-wit==1.7.0
 tensorboard==2.3.0
-tensorboardX==1.9
-tensorflow-estimator==2.3.0
-tensorflow-probability==0.9.0
 tensorflow==2.3.0
 ```
 
