@@ -50,8 +50,8 @@ Data here comes from the [Jester](https://goldberg.berkeley.edu/jester-data/)
 collaborative filtering dataset for an online joke rating system.
 For further details about that research project, see:
 
-[Eigentaste: A Constant Time Collaborative Filtering Algorithm](http://www.ieor.berkeley.edu/~goldberg/pubs/eigentaste.pdf).
-Ken Goldberg, Theresa Roeder, Dhruv Gupta, Chris Perkins.
+> [Eigentaste: A Constant Time Collaborative Filtering Algorithm](http://www.ieor.berkeley.edu/~goldberg/pubs/eigentaste.pdf).  
+Ken Goldberg, Theresa Roeder, Dhruv Gupta, Chris Perkins.  
 *Information Retrieval*, 4(2), 133-151. (July 2001)
 
 ### Analysis
