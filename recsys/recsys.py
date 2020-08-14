@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from gym import spaces
 from gym.utils import seeding
+from paretoset import paretoset
 from pathlib import Path
 from ray.tune.registry import register_env
 from sklearn.cluster import KMeans
@@ -446,9 +447,9 @@ PARSER.add_argument("-v", "--verbose",
                     )
 
 
-def init_dir (chkpt_root):
+def init_dir (checkpoint_root):
     # initialize the directory in which to save checkpoints
-    shutil.rmtree(chkpt_root, ignore_errors=True, onerror=None)
+    shutil.rmtree(checkpoint_root, ignore_errors=True, onerror=None)
 
     # initialize directory in which to log results
     ray_results = "{}/ray_results/".format(os.getenv("HOME"))
@@ -476,7 +477,7 @@ def main (args):
     PARAM["debug"] = args.debug
     PARAM["verbose"] = args.verbose
     PARAM["dataset"] = "jester-data-1.csv"
-    PARAM["chkpt_root"] = "tmp/rec"
+    PARAM["checkpoint_root"] = "tmp/rec"
 
     # sample the dataset, cluster, then prepare a configuration
     dataset_path = Path.cwd() / Path(PARAM["dataset"])
@@ -503,7 +504,7 @@ def main (args):
     #sys.exit(0)
 
     # clear logs and restart Ray
-    init_dir(PARAM["chkpt_root"])
+    init_dir(PARAM["checkpoint_root"])
     ray.init(ignore_reinit_error=True)
 
     # register the custom environment and create an agent
@@ -512,11 +513,19 @@ def main (args):
     AGENT = ppo.PPOTrainer(CONFIG, env=env_key)
 
     # use RLlib to train a policy using PPO
-    status = "{:2d}  reward {:6.2f}/{:6.2f}/{:6.2f}  len {:4.2f}  saved {}"
+    df = pd.DataFrame(columns=[ "min_reward", "avg_reward", "max_reward", "checkpoint"])
+    status = "{:2d}  reward {:6.2f} {:6.2f} {:6.2f}  len {:4.2f}  saved {}"
 
     for n in range(PARAM["train_iter"]):
         result = AGENT.train()
-        chkpt_file = AGENT.save(PARAM["chkpt_root"])
+        checkpoint_file = AGENT.save(PARAM["checkpoint_root"])
+
+        df.loc[len(df)] = [
+            result["episode_reward_min"],
+            result["episode_reward_mean"],
+            result["episode_reward_max"],
+            checkpoint_file,
+            ]
 
         print(status.format(
                 n + 1,
@@ -524,8 +533,17 @@ def main (args):
                 result["episode_reward_mean"],
                 result["episode_reward_max"],
                 result["episode_len_mean"],
-                chkpt_file
+                checkpoint_file
                 ))
+
+    # use a pareto archive to select the best checkpoint
+    df_front = df.drop(columns=["checkpoint"])
+    mask = paretoset(df_front, sense=["max", "max", "max"])
+    optimal = df_front[mask]
+    max_val = optimal["avg_reward"].max()
+
+    best_checkpoint = df.loc[df["avg_reward"] == max_val, "checkpoint"].values[0]
+    print("\n", "BEST CHECKPOINT:", best_checkpoint, "\n")
 
     # examine the trained policy
     policy = AGENT.get_policy()
@@ -533,8 +551,7 @@ def main (args):
     print("\n", model.base_model.summary())
 
     # apply the trained policy in a rollout
-    AGENT.restore(chkpt_file)
-    print("\n", "BEST CHECKPOINT:", chkpt_file, "\n")
+    AGENT.restore(best_checkpoint)
 
     JokeRec.run_rollout(
         AGENT,
