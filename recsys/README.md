@@ -1,24 +1,24 @@
 # RLlib Tutorial: A recommender system based on reinforcement learning
 
-This codes illustrates one way to build a recommender system based on
-reinforcement learning, using [Ray RLlib](https://rllib.io/) used for
+This shows how to build a [*recommender system*](https://en.wikipedia.org/wiki/Recommender_system) 
+based on reinforcement learning using [Ray RLlib](https://rllib.io/).
+The code+data+docs are intended for use as a tutorial about RLlib for
 [Anyscale Academy](https://github.com/anyscale/academy).
 
-The data comes from the [Jester](https://goldberg.berkeley.edu/jester-data/)
-collaborative filtering dataset for an online joke rating system.
-For further details about that research project, see:
+While the clustering used for configuration can be performed *offline* 
+for periodic updates, otherwise this recommender leverages *online learning*.
+Benefits of this approach include:
 
-[Eigentaste: A Constant Time Collaborative Filtering Algorithm](http://www.ieor.berkeley.edu/~goldberg/pubs/eigentaste.pdf)
-Ken Goldberg, Theresa Roeder, Dhruv Gupta, Chris Perkins.
-*Information Retrieval*, 4(2), 133-151. (July 2001)
-
+  * personalization per user, updating based on their most recent ratings
+  * scales well: memory requirements are bounded per user and per item
+  * simple to adapt for changes in items and users
+  * can be generalized for other use cases which involve *users/items/ratings*
 
 ### Installation
 
 ```
 pip install -r requirements.txt
 ```
-
 
 ### Running
 
@@ -38,20 +38,27 @@ python recsys.py --help
 A full run takes about 5-10 minutes on a recent model MacBook Pro
 laptop.
 
-
 ### Troubleshooting
 
 If you are reviewing a branch of this repo to evaluate a reported
 issue, the latest exception trace from the Ray worker (if any) will be
 located in `error.txt` in this directory.
 
+### Data Source
+
+Data here comes from the [Jester](https://goldberg.berkeley.edu/jester-data/)
+collaborative filtering dataset for an online joke rating system.
+For further details about that research project, see:
+
+[Eigentaste: A Constant Time Collaborative Filtering Algorithm](http://www.ieor.berkeley.edu/~goldberg/pubs/eigentaste.pdf).
+Ken Goldberg, Theresa Roeder, Dhruv Gupta, Chris Perkins.
+*Information Retrieval*, 4(2), 133-151. (July 2001)
 
 ### Analysis
 
 There is a Jupyter notebook `cluster.ipynb` which was used to
 determine how to optimize the clustering used by the recommender
 system.
-
 
 ### Dependencies
 
@@ -72,3 +79,7 @@ tensorflow-estimator==2.3.0
 tensorflow-probability==0.9.0
 tensorflow==2.3.0
 ```
+
+### Questions
+
+Contact [@ceteri](https://github.com/ceteri)
