@@ -62,9 +62,10 @@ It could be adapted for other data sources.
 
 ### Dependencies
 
-This code was developed in `Python 3.7.4` on `macOS 0.13.6 (17G14019)`
-using the following releases of library dependencies related to
-[Ray](https://ray.io/):
+This code was originally developed in 
+`Python 3.7.4` on `macOS 0.13.6 (17G14019)`
+based on using the following releases of library dependencies related
+to [Ray](https://ray.io/):
 
 ```
 gym==0.17.2
