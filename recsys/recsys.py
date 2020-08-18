@@ -571,11 +571,6 @@ def main ():
     best_checkpoint = get_best_checkpoint(df)
     print("\n", "BEST CHECKPOINT:", best_checkpoint, "\n")
 
-    # examine the trained policy
-    policy = AGENT.get_policy()
-    model = policy.model
-    print("\n", model.base_model.summary())
-
     # apply the trained policy in a rollout
     AGENT.restore(best_checkpoint)
 
@@ -588,6 +583,11 @@ def main ():
         PARAM["rollout_iter"],
         verbose=PARAM["verbose"]
         )
+
+    # examine the trained policy
+    policy = AGENT.get_policy()
+    model = policy.model
+    print("\n", model.base_model.summary())
 
     # shutdown gracefully, kthxbai
     ray.shutdown()
