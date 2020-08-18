@@ -23,6 +23,7 @@ import ray.rllib.agents.ppo as ppo
 import shutil
 import sys
 import traceback
+import warnings
 
 
 ######################################################################
@@ -518,6 +519,8 @@ def get_best_checkpoint (df):
 ## main entry point
 
 def main ():   
+    warnings.filterwarnings("ignore", category=DeprecationWarning) 
+
     # initialize logs, dataset, configuration
     PARAM = parse_args()
     init_dir(PARAM["checkpoint_root"])
@@ -556,6 +559,7 @@ def main ():
 
     for i in range(PARAM["train_iter"]):
         result = AGENT.train()
+
         checkpoint_file = AGENT.save(PARAM["checkpoint_root"])
         row = [
             result["episode_reward_min"],
