@@ -12,7 +12,9 @@ Benefits of this approach include:
   * personalization per user, updating based on their most recent ratings
   * scales well: memory requirements are bounded per user and per item
   * simple to adapt for changes in items and users
-  * can be generalized for other use cases which involve *users/items/ratings*
+
+This approach can be generalized for other use cases which involve
+*users/items/ratings*, adapting other data sources.
 
 
 ### Installation
@@ -53,13 +55,6 @@ For further details about that research project, see:
 > [Eigentaste: A Constant Time Collaborative Filtering Algorithm](http://www.ieor.berkeley.edu/~goldberg/pubs/eigentaste.pdf).  
 Ken Goldberg, Theresa Roeder, Dhruv Gupta, Chris Perkins.  
 *Information Retrieval*, 4(2), 133-151. (July 2001)
-
-
-### Analysis
-
-There is a Jupyter notebook `cluster.ipynb` which helped determine 
-how to optimize the clustering used by this recommender system.
-It could be adapted for other data sources.
 
 
 ### Dependencies
