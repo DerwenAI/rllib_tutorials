@@ -14,11 +14,13 @@ Benefits of this approach include:
   * simple to adapt for changes in items and users
   * can be generalized for other use cases which involve *users/items/ratings*
 
+
 ### Installation
 
 ```
 pip install -r requirements.txt
 ```
+
 
 ### Running
 
@@ -38,11 +40,9 @@ python recsys.py --help
 A full run takes about 5-10 minutes on a recent model MacBook Pro
 laptop.
 
-### Troubleshooting
+Alternatively, run the `recsys.ipynb` notebook in Jupyter Lab, Google
+Colab, or other similar notebook hosting environments.
 
-If you are reviewing a branch of this repo to evaluate a reported
-issue, the latest exception trace from the Ray worker (if any) will be
-located in `error.txt` in this directory.
 
 ### Data Source
 
@@ -54,11 +54,13 @@ For further details about that research project, see:
 Ken Goldberg, Theresa Roeder, Dhruv Gupta, Chris Perkins.  
 *Information Retrieval*, 4(2), 133-151. (July 2001)
 
+
 ### Analysis
 
 There is a Jupyter notebook `cluster.ipynb` which helped determine 
 how to optimize the clustering used by this recommender system.
 It could be adapted for other data sources.
+
 
 ### Dependencies
 
@@ -68,14 +70,24 @@ based on using the following releases of library dependencies related
 to [Ray](https://ray.io/):
 
 ```
-gym==0.17.2
-numpy==1.18.5
-pandas==1.0.5
-ray==0.8.6
-scikit-learn==0.21.3
-tensorboard==2.3.0
-tensorflow==2.3.0
+gym >= 0.17.2
+numpy >= 1.18.5
+pandas >= 1.0.5
+paretoset >= 1.1.2
+ray >= 0.8.7
+scikit-learn >= 0.21.3
+tensorboard >= 2.3.0
+tensorflow >= 2.3.0
+tqdm >= 4.37.0
 ```
+
+
+### Troubleshooting
+
+If you are reviewing a branch of this repo to evaluate a reported
+issue, the latest exception trace from the Ray worker (if any) will be
+located in `error.txt` in this directory.
+
 
 ### Questions
 
