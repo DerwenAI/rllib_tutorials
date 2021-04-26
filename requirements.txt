@@ -1,0 +1,7 @@
+ray==1.2.0
+gym
+jupyterlab
+numpy
+pandas
+tensorboard
+tensorflow
