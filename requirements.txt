@@ -1,0 +1,5 @@
+ray==1.2.0
+gym
+pandas
+tensorboard
+tensorflow
