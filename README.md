@@ -34,3 +34,35 @@ command line:
 ```
 jupyter-lab
 ```
+
+---
+
+## Tutorial: Intro to Reinforcement Learning and Tour Through RLlib
+
+
+*Intro to Reinforcement Learning and Tour Through RLlib* covers an
+introductory, hands-on coding tour through RLlib and related
+components of Ray used for reinforcement learning applications in
+Python.
+This webinar begins with a lecture that introduces reinforcement
+learning, including the essential concepts and terminology, plus show
+typical coding patterns used in RLlib.
+We'll also explore four different well-known reinforcement learning
+environments through hands-on coding.
+The intention is to compare and contrast across these environments to
+highlight the practices used in RLlib.
+Then we'll follow with Q&A.
+
+### Prerequisites
+
+  * some Python programming experience
+  * some familiarity with machine learning
+  * clone/install the Git repo
+  * no previous work in reinforcement learning
+  * no previous hands-on experience with RLlib
+
+### Background
+
+See also:
+
+  * [*Intro to RLlib: Example Environments*](https://medium.com/distributed-computing-with-ray/intro-to-rllib-example-environments-3a113f532c70)
