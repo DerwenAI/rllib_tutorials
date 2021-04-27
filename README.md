@@ -66,3 +66,16 @@ Then we'll follow with Q&A.
 See also:
 
   * [*Intro to RLlib: Example Environments*](https://medium.com/distributed-computing-with-ray/intro-to-rllib-example-environments-3a113f532c70)
+
+
+## Resources
+
+  * [Forum](https://discuss.ray.io/)
+  * [GitHub](https://github.com/ray-project/ray)
+  * [Twitter](https://twitter.com/raydistributed)
+  * [Slack](https://tinyurl.com/rayslack)
+
+**Ray Summit**  
+June 22-24, 2021  
+online, free registration  
+<https://www.anyscale.com/ray-summit-2021>
