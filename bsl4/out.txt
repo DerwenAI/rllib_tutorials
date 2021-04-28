@@ -1,0 +1,43 @@
+WARNING:tensorflow:From /opt/anaconda3/lib/python3.7/site-packages/tensorflow/python/compat/v2_compat.py:96: disable_resource_variables (from tensorflow.python.ops.variable_scope) is deprecated and will be removed in a future version.
+Instructions for updating:
+non-resource variables are not supported in the long term
+File descriptor limit 256 is too low for production servers and may result in connection errors. At least 8192 is recommended. --- Fix with 'ulimit -n 8192'
+2021-04-28 13:55:35,045	INFO services.py:1174 -- View the Ray dashboard at [1m[32mhttp://127.0.0.1:8266[39m[22m
+2021-04-28 13:55:37,908	INFO trainer.py:616 -- Tip: set framework=tfe or the --eager flag to enable TensorFlow eager execution
+2021-04-28 13:55:37,909	INFO trainer.py:643 -- Current log_level is WARN. For more information, set 'log_level': 'INFO' / 'DEBUG' or use the -v and -vv flags.
+[2m[36m(pid=4768)[0m WARNING:tensorflow:From /opt/anaconda3/lib/python3.7/site-packages/tensorflow/python/compat/v2_compat.py:96: disable_resource_variables (from tensorflow.python.ops.variable_scope) is deprecated and will be removed in a future version.
+[2m[36m(pid=4768)[0m Instructions for updating:
+[2m[36m(pid=4768)[0m non-resource variables are not supported in the long term
+[2m[36m(pid=4768)[0m 2021-04-28 13:55:41,492	WARNING deprecation.py:34 -- DeprecationWarning: `framestack` has been deprecated. Use `num_framestacks (int)` instead. This will raise an error in the future!
+2021-04-28 13:55:42,382	WARNING deprecation.py:34 -- DeprecationWarning: `framestack` has been deprecated. Use `num_framestacks (int)` instead. This will raise an error in the future!
+[2m[36m(pid=4768)[0m 2021-04-28 13:55:44,946	WARNING deprecation.py:34 -- DeprecationWarning: `env_index` has been deprecated. Use `episode.env_id` instead. This will raise an error in the future!
+[2m[36m(pid=4768)[0m WARNING:tensorflow:From /opt/anaconda3/lib/python3.7/site-packages/ray/rllib/policy/tf_policy.py:928: Variable.load (from tensorflow.python.ops.variables) is deprecated and will be removed in a future version.
+[2m[36m(pid=4768)[0m Instructions for updating:
+[2m[36m(pid=4768)[0m Prefer Variable.assign which has equivalent behavior in 2.X.
+WARNING:tensorflow:From /opt/anaconda3/lib/python3.7/site-packages/ray/rllib/policy/tf_policy.py:928: Variable.load (from tensorflow.python.ops.variables) is deprecated and will be removed in a future version.
+Instructions for updating:
+Prefer Variable.assign which has equivalent behavior in 2.X.
+Last updated: 2021-04-28T13:55:34.505219-07:00
+
+Python implementation: CPython
+Python version       : 3.7.4
+IPython version      : 7.16.1
+
+Compiler    : Clang 4.0.1 (tags/RELEASE_401/final)
+OS          : Darwin
+Release     : 17.7.0
+Machine     : x86_64
+Processor   : i386
+CPU cores   : 4
+Architecture: 64bit
+
+  0: Min/Mean/Max reward:   8.0000/ 23.1170/ 89.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_1/checkpoint-1
+  1: Min/Mean/Max reward:   9.0000/ 29.4161/ 84.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_2/checkpoint-2
+  2: Min/Mean/Max reward:  10.0000/ 42.1700/115.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_3/checkpoint-3
+  3: Min/Mean/Max reward:  13.0000/ 55.8100/157.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_4/checkpoint-4
+  4: Min/Mean/Max reward:  15.0000/ 70.0300/222.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_5/checkpoint-5
+  5: Min/Mean/Max reward:  19.0000/ 91.8800/222.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_6/checkpoint-6
+  6: Min/Mean/Max reward:  19.0000/113.2000/315.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_7/checkpoint-7
+  7: Min/Mean/Max reward:  37.0000/140.8900/500.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_8/checkpoint-8
+  8: Min/Mean/Max reward:  37.0000/168.2400/500.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_9/checkpoint-9
+  9: Min/Mean/Max reward:  37.0000/195.3400/500.0000. Checkpoint saved to tmp/ppo/cart/checkpoint_10/checkpoint-10
