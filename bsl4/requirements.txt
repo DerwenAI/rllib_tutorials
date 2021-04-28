@@ -1,0 +1,8 @@
+ray==1.2.0
+numpy >= 1.19.2
+gym
+jupyterlab
+pandas
+tensorboard
+tensorflow
+watermark
