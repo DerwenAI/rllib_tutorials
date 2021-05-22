@@ -1,7 +1,8 @@
-ray == 1.2.0
+ray[rllib] == 1.2.0
 
 gym >= 0.17.2
 jupyterlab >= 1.1
+matplotlib >= 3.3
 numpy >= 1.18.5
 pandas >= 1.0.5
 paretoset >= 1.1.2
