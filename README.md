@@ -39,7 +39,6 @@ jupyter-lab
 
 ## Tutorial: Intro to Reinforcement Learning and Tour Through RLlib
 
-
 *Intro to Reinforcement Learning and Tour Through RLlib* covers an
 introductory, hands-on coding tour through RLlib and related
 components of Ray used for reinforcement learning applications in
@@ -67,6 +66,24 @@ See also:
 
   * [*Intro to RLlib: Example Environments*](https://medium.com/distributed-computing-with-ray/intro-to-rllib-example-environments-3a113f532c70)
 
+
+## Tutorial: Using Reinforcement Learning: Custom Environments, Multi-Armed Bandits, Recommendation Systems 
+
+*Using Reinforcement Learning* begins with a brief tutorial about how to
+build custom Gym environments to use with RLlib, to use as a starting point.
+We’ll then explore hands-on coding for RL through two use cases:
+
+  1. Contextual bandits with a financial portfolio optimization example–a real-world problem addressed with a “constrained” class of RL algorithms
+  2. Building a recommender system with RLlib–new approaches to recommenders, which can be adapted to similar use cases
+
+### Prerequisites
+
+  * Some Python programming experience
+  * Some familiarity with machine learning
+  * Clone/install the Git repo
+  * *Intro to Reinforcement Learning and Tour Through RLlib* or equivalent
+
+---
 
 ## Resources
 
