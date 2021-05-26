@@ -154,8 +154,13 @@ class JokeRec (gym.Env):
                 # evolving distance to each cluster
                 for i in range(len(self.coords)):
                     c = self.centers[i]
+
+                    # note that `rating` values are already scaled,
+                    # and the `c[item]` cluster center also is an
+                    # average of the scaled ratings for a given item
                     scaled_diff = abs(c[item] - rating) / 2.0
                     assert scaled_diff <= 1.0, assert_info.format(c[item], rating, scaled_diff)
+
                     self.coords[i] += scaled_diff ** 2.0
                     assert self.coords[i] < len(self.used), (self.coords[i], scaled_diff ** 2.0)
 
