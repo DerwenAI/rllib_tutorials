@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from gym import spaces
 from gym.utils import seeding
+from icecream import ic
 from paretoset import paretoset
 from pathlib import Path
 from ray.tune.registry import register_env
@@ -122,8 +123,9 @@ class JokeRec (gym.Env):
         assert action in self.action_space, action
         assert_info = "c[item] {}, rating {}, scaled_diff {}"
 
-        # enumerate items from the cluster selected by the action that
-        # haven't been recommended previously to the simulated user
+        # enumerate items from the cluster which is selected by the
+        # action, which in turn haven't been recommended previously to
+        # the simulated user
         items = set(self.clusters[action]).difference(set(self.used))
 
         if len(items) < 1:
@@ -135,8 +137,8 @@ class JokeRec (gym.Env):
             item = None
             reward = self.REWARD_DEPLETED
         else:
-            # chose an item from the selected cluster
-            item = random.choice(list(items))
+            # chose an item at random from the selected cluster
+            item = random.choice(tuple(items))
             rating = self.data_row[item]
 
             if not rating:
@@ -145,7 +147,7 @@ class JokeRec (gym.Env):
                 reward = self.REWARD_UNRATED
 
             else:
-                # success! this action=> resulted in an item rated by
+                # success! this action => resulted in an item rated by
                 # the simulated user
                 reward = rating
                 self.used.append(item)
@@ -267,29 +269,86 @@ class JokeRec (gym.Env):
     ## K-means clustering using scikit-learn
 
     @classmethod
+    def get_scaled_clusters (cls, centers):
+        """
+        return a DataFrame with the item-to-center "distance" scaled
+        within `[0.0, 1.0]` where `0.0` represents "nearest"
+        """
+        df_scaled = pd.DataFrame()
+
+        df = pd.DataFrame(centers)
+        n_items = df.shape[1]
+
+        for item in range(n_items):
+            row = df[item].values
+            item_max = max(row)
+            item_min = min(row)
+            scale = item_max - item_min
+        
+            df_scaled[item] = pd.Series([
+                    1.0 - (val - item_min) / scale
+                    for val in row
+                    ])
+
+        return df_scaled
+
+
+    @classmethod
+    def partition_items (cls, df):
+        """
+        return a partitioned map, where each cluster is a set sampled
+        from its "nearest" items
+        """
+        k = df.shape[0]
+        n_items = df.shape[1]
+
+        clusters = defaultdict(set)
+        selected = set()
+        i = 0
+
+        while len(selected) < n_items:
+            label = i % k
+            i += 1
+
+            row = df.loc[label, :].values.tolist()
+
+            gradient = {
+                item: dist
+                for item, dist in enumerate(row)
+                if item not in selected
+                }
+
+            nearest_item = min(gradient, key=gradient.get)
+            selected.add(nearest_item)
+            clusters[label].add(nearest_item)
+    
+        return clusters
+
+
+    @classmethod
     def cluster_sample (cls, k, sample):
         df = pd.DataFrame(sample)
 
-        # impute missing values using the column means (i.e., the avg
-        # rating per item)
+        # impute missing values
         # https://scikit-learn.org/stable/modules/impute.html
-        imp = SimpleImputer(missing_values=np.nan, strategy="mean")
+        # NB: simple case for a demo; this could be much improved in a
+        # production recsys
+        imp = SimpleImputer(missing_values=np.nan, strategy="median")
         imp.fit(df.values)
-        X = imp.transform(df.values).T
+        X = imp.transform(df.values)
 
         # perform K-means clustering
         # https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
         km = KMeans(n_clusters=k)
         km.fit(X)
+
+        # partition items into their "nearest" respective clusters
         centers = km.cluster_centers_
+        df_scaled = cls.get_scaled_clusters(centers)
+        clusters = cls.partition_items(df_scaled)
 
-        # segment the items by their respective cluster labels
-        clusters = defaultdict(set)
-        labels = km.labels_
-
-        for i in range(len(labels)):
-            clusters[labels[i]].add(i)
-
+        # since these results will get serialized across the network,
+        # convert them to built-in data types
         return centers.tolist(), dict(clusters)
 
 
